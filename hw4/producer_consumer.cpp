@@ -1,4 +1,3 @@
-//Code:
 // Consumer Producer Template in C++ using semaphores.
 // Must compile with C++20
 
@@ -6,7 +5,8 @@
 #include <thread>
 #include <iostream>
 #include <cstdlib>
-#include <chrono> 
+#include <chrono>
+#include <ctime>
 
 using namespace std;
 
@@ -15,38 +15,28 @@ int buffer[buffer_size];          // buffer holds 6 cells 0-5
 
 const int max_iterations = 30;    // stop after 30 items
 
-// ---- Missing Declarations Added ----
 int in_ptr = 0;
 int out_ptr = 0;
-
-int nextProduced = 1;
-int nextConsumed = 1;
 
 // Semaphores
 counting_semaphore<buffer_size> sem_empty(buffer_size); // initially all empty
 counting_semaphore<buffer_size> sem_full(0);            // initially none full
-binary_semaphore sem_mutex(1);                          // protects critical section
-// ------------------------------------
-
 
 void Producer(int id)
 {
-    while (nextProduced <= max_iterations)
+    for (int item = 1; item <= max_iterations; item++)
     {
         sem_empty.acquire();      // wait if buffer full
-        sem_mutex.acquire();      // enter critical section
 
-        buffer[in_ptr] = nextProduced;
+        buffer[in_ptr] = item;
 
-        cout << "  Producer " << id 
-             << " entered: " << buffer[in_ptr] 
+        cout << "  Producer " << id
+             << " entered: " << buffer[in_ptr]
              << "  in cell: " << in_ptr
              << endl;
 
         in_ptr = (in_ptr + 1) % buffer_size;
-        nextProduced++;
 
-        sem_mutex.release();      // leave critical section
         sem_full.release();       // signal that item is available
 
         this_thread::sleep_for(
@@ -54,23 +44,19 @@ void Producer(int id)
     }
 }
 
-
-void Consumer(int id) 
+void Consumer(int id)
 {
-    while (nextConsumed <= max_iterations)
+    for (int item = 1; item <= max_iterations; item++)
     {
         sem_full.acquire();       // wait if buffer empty
-        sem_mutex.acquire();      // enter critical section
 
-        cout << "                                        Consumer " << id 
-             << " consumed: " << buffer[out_ptr] 
-             << "  from cell: " << out_ptr 
+        cout << "                                        Consumer " << id
+             << " consumed: " << buffer[out_ptr]
+             << "  from cell: " << out_ptr
              << endl;
 
         out_ptr = (out_ptr + 1) % buffer_size;
-        nextConsumed++;
 
-        sem_mutex.release();      // leave critical section
         sem_empty.release();      // signal empty slot available
 
         this_thread::sleep_for(
@@ -78,23 +64,22 @@ void Consumer(int id)
     }
 }
 
-
 int main()
 {
     srand(time(NULL));
 
     auto start = chrono::steady_clock::now();
 
-    thread producer = thread(Producer, 1);
-    thread consumer = thread(Consumer, 1);
+    thread producer(Producer, 1);
+    thread consumer(Consumer, 1);
 
     producer.join();
     consumer.join();
 
     auto stop = chrono::steady_clock::now();
 
-    cout << "\n  Time (ms): " 
-         << chrono::duration_cast<chrono::milliseconds>(stop - start).count() 
+    cout << "\n  Time (ms): "
+         << chrono::duration_cast<chrono::milliseconds>(stop - start).count()
          << "\n";
 
     return 0;
